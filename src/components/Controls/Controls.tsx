@@ -1,8 +1,8 @@
 "use client";
 
-import { SkipForward, Target, Trophy } from "lucide-react";
+import { Music2, SkipForward, Target, Trophy } from "lucide-react";
 import { usePracticeStore } from "@/store/usePracticeStore";
-import type { Difficulty } from "@/lib/types";
+import type { ChordFilter, Difficulty } from "@/lib/types";
 
 const DIFFICULTIES: { key: Difficulty; label: string }[] = [
   { key: "treble", label: "Khuông treble" },
@@ -12,10 +12,18 @@ const DIFFICULTIES: { key: Difficulty; label: string }[] = [
   { key: "ledger", label: "Nốt ngoài khuông" },
 ];
 
+const CHORD_FILTERS: { key: ChordFilter; label: string }[] = [
+  { key: "basic", label: "Cơ bản (trưởng/thứ)" },
+  { key: "advanced", label: "Nâng cao (7, sus, add…)" },
+  { key: "all", label: "Tất cả" },
+];
+
 export default function Controls() {
   const mode = usePracticeStore((s) => s.mode);
   const difficulty = usePracticeStore((s) => s.difficulty);
   const setDifficulty = usePracticeStore((s) => s.setDifficulty);
+  const chordFilter = usePracticeStore((s) => s.chordFilter);
+  const setChordFilter = usePracticeStore((s) => s.setChordFilter);
   const nextChallenge = usePracticeStore((s) => s.nextChallenge);
   const score = usePracticeStore((s) => s.score);
   const attempts = usePracticeStore((s) => s.attempts);
@@ -34,6 +42,24 @@ export default function Controls() {
             {DIFFICULTIES.map((d) => (
               <option key={d.key} value={d.key}>
                 {d.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {mode === "CHORDS" && (
+        <label className="flex items-center gap-2 text-sm">
+          <Music2 size={16} className="text-zinc-400" />
+          <span className="text-zinc-500 dark:text-zinc-400">Loại hợp âm</span>
+          <select
+            value={chordFilter}
+            onChange={(e) => setChordFilter(e.target.value as ChordFilter)}
+            className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+          >
+            {CHORD_FILTERS.map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.label}
               </option>
             ))}
           </select>

@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { Play } from "lucide-react";
 import { usePracticeStore } from "@/store/usePracticeStore";
-import { chordInfo, detectChord, pitchClass } from "@/lib/music/theory";
+import { chordInfo, chordNameVn, detectChord, pitchClass } from "@/lib/music/theory";
 import { playArpeggio, playChord } from "@/lib/audio/pianoSampler";
 
 export default function ChordDisplay() {
@@ -10,6 +11,11 @@ export default function ChordDisplay() {
   const symbol = usePracticeStore((s) => s.currentChordSymbol);
   const targetNotes = usePracticeStore((s) => s.targetNotes);
   const activeNotes = usePracticeStore((s) => s.activeNotes);
+  const previewChord = usePracticeStore((s) => s.previewChord);
+  const cancelPreview = usePracticeStore((s) => s.cancelPreview);
+
+  // Đổi tab sang "Học lý thuyết" sẽ unmount mà không gọi setMode → dọn phím sáng.
+  useEffect(() => () => cancelPreview(), [cancelPreview]);
 
   if (mode !== "CHORDS" || !symbol) return null;
 
@@ -19,9 +25,10 @@ export default function ChordDisplay() {
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="flex items-baseline gap-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-3xl font-bold tracking-tight">{symbol}</span>
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">{info.name}</span>
+        <span className="text-lg font-semibold text-zinc-700 dark:text-zinc-200">{chordNameVn(symbol)}</span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">{info.name}</span>
       </div>
 
       <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -32,17 +39,26 @@ export default function ChordDisplay() {
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
-          onClick={() => playChord(targetNotes, "block")}
+          onClick={() => {
+            playChord(targetNotes, "block");
+            previewChord(targetNotes, "block");
+          }}
           className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-3 py-1.5 text-sm font-medium transition hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
         >
           <Play size={14} /> Hợp âm
         </button>
         <button
-          onClick={() => playArpeggio(targetNotes)}
+          onClick={() => {
+            playArpeggio(targetNotes);
+            previewChord(targetNotes, "arpeggio");
+          }}
           className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-3 py-1.5 text-sm font-medium transition hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
         >
           <Play size={14} /> Rải (arpeggio)
         </button>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+          Bấm để xem nốt sáng trên bàn phím
+        </span>
       </div>
 
       <div className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
@@ -52,7 +68,7 @@ export default function ChordDisplay() {
         </span>
         {detected.length > 0 && (
           <span className="ml-2 rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-            Nhận diện: {detected[0]}
+            Nhận diện: {detected[0]} · {chordNameVn(detected[0])}
           </span>
         )}
       </div>

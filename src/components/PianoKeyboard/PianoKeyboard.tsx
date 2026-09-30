@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buildKeyboard, QWERTY_MAP } from "@/lib/music/keyboard";
 import { usePracticeStore } from "@/store/usePracticeStore";
-import { midiToName, nameToMidi } from "@/lib/music/theory";
+import { midiToName, nameToMidi, pitchClass } from "@/lib/music/theory";
 import type { KeyDef } from "@/lib/types";
 
 /** Số quãng tám hiển thị cùng lúc (đủ nhỏ để phím to trên điện thoại). */
@@ -16,6 +16,7 @@ const MAX_START_OCTAVE = 6;
 
 export default function PianoKeyboard() {
   const activeNotes = usePracticeStore((s) => s.activeNotes);
+  const previewNotes = usePracticeStore((s) => s.previewNotes);
   const targetNotes = usePracticeStore((s) => s.targetNotes);
   const pressNote = usePracticeStore((s) => s.pressNote);
   const releaseNote = usePracticeStore((s) => s.releaseNote);
@@ -51,6 +52,12 @@ export default function PianoKeyboard() {
   const activeMidis = useMemo(
     () => new Set(activeNotes.map(nameToMidi).filter((x): x is number => x != null)),
     [activeNotes],
+  );
+  // Nốt đang nghe thử — khớp theo MIDI (không theo pitch class) vì đây là đúng
+  // thế bấm của hợp âm, cần chính xác từng quãng tám.
+  const previewMidis = useMemo(
+    () => new Set(previewNotes.map(nameToMidi).filter((x): x is number => x != null)),
+    [previewNotes],
   );
   const targetPcs = useMemo(
     () =>
@@ -138,20 +145,27 @@ export default function PianoKeyboard() {
 
   const isActive = (k: KeyDef) => activeMidis.has(k.midi);
   const inTarget = (k: KeyDef) => targetPcs.has(((k.midi % 12) + 12) % 12);
+  const isPreview = (k: KeyDef) => previewMidis.has(k.midi);
+  /** Phím đang phát ra tiếng (người dùng bấm hoặc đang nghe thử) → hiện tên nốt. */
+  const isLit = (k: KeyDef) => isActive(k) || isPreview(k);
 
+  // Thứ tự ưu tiên màu: đang bấm > đang nghe thử > bình thường. Phím người dùng
+  // đang bấm không bao giờ bị phần nghe thử che mất.
   const whiteClass = (k: KeyDef) => {
     const base =
       "absolute top-0 bottom-0 rounded-b-md border border-zinc-300 flex items-end justify-center pb-1 text-[10px] transition-colors duration-75 select-none";
     if (isActive(k))
       return `${base} ${inTarget(k) ? "bg-emerald-400 text-emerald-950 border-emerald-500" : "bg-rose-500 text-white border-rose-600"}`;
+    if (isPreview(k)) return `${base} bg-sky-400 text-sky-950 border-sky-600`;
     return `${base} bg-white text-zinc-400 hover:bg-zinc-100`;
   };
 
   const blackClass = (k: KeyDef) => {
     const base =
-      "absolute top-0 h-[62%] z-10 rounded-b-md border border-black shadow-md transition-colors duration-75 select-none";
+      "absolute top-0 h-[62%] z-10 rounded-b-md border border-black shadow-md transition-colors duration-75 select-none flex items-end justify-center pb-1 text-[9px]";
     if (isActive(k))
       return `${base} ${inTarget(k) ? "bg-emerald-400 border-emerald-500" : "bg-rose-500 border-rose-600"}`;
+    if (isPreview(k)) return `${base} bg-sky-500 border-sky-700 text-sky-50`;
     return `${base} bg-zinc-900 hover:bg-zinc-700`;
   };
 
@@ -207,7 +221,7 @@ export default function PianoKeyboard() {
                 style={{ left: `${k.leftPct}%`, width: `${k.widthPct}%` }}
                 {...handlers(k)}
               >
-                {k.label}
+                {isLit(k) ? pitchClass(k.note) : k.label}
               </div>
             ))}
           {keys
@@ -221,7 +235,9 @@ export default function PianoKeyboard() {
                 className={blackClass(k)}
                 style={{ left: `${k.leftPct}%`, width: `${k.widthPct}%` }}
                 {...handlers(k)}
-              />
+              >
+                {isLit(k) && <span>{pitchClass(k.note)}</span>}
+              </div>
             ))}
         </div>
       </div>

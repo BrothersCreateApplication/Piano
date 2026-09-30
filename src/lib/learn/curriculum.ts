@@ -65,15 +65,16 @@ export const LESSONS: LessonDef[] = [
     id: "chords",
     level: 7,
     title: "Hợp âm cơ bản",
-    desc: "Hợp âm trưởng / thứ",
-    make: () => genChordQuestion(false),
+    desc: "Hợp âm trưởng & thứ (3 nốt)",
+    make: () => genChordQuestion("basic"),
   },
   {
+    // Giữ id "chords7" để không mất tiến độ đã lưu trong localStorage.
     id: "chords7",
     level: 8,
-    title: "Hợp âm 7",
-    desc: "Hợp âm 7, maj7, m7",
-    make: () => genChordQuestion(true),
+    title: "Hợp âm nâng cao",
+    desc: "7, giảm, tăng, sus, add…",
+    make: () => genChordQuestion("advanced"),
   },
   {
     id: "keys",

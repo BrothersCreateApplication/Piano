@@ -3,24 +3,48 @@
  * Tất cả logic interval / scale / chord / mapping nốt đều đi qua đây.
  */
 import { Chord, Note, Scale } from "tonal";
-import type { Difficulty } from "@/lib/types";
+import type { ChordFilter, ChordGroup, Difficulty } from "@/lib/types";
 
 /** Các pitch class của phím trắng (C D E F G A B). */
 const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
 
-/** Danh sách loại hợp âm dùng cho chế độ luyện tập, ánh xạ sang ký hiệu tonal. */
+export interface ChordQuality {
+  /** Tên loại hợp âm bằng tiếng Việt. */
+  label: string;
+  /** Hậu tố ký hiệu hợp âm (rỗng = hợp âm trưởng). */
+  suffix: string;
+  /** "basic" = 2 hợp âm nền tảng (trưởng/thứ); "advanced" = phần còn lại. */
+  group: ChordGroup;
+}
+
+/**
+ * Danh sách loại hợp âm dùng cho cả chế độ luyện tập lẫn bài trắc nghiệm,
+ * ánh xạ sang ký hiệu tonal. `group` là nguồn sự thật duy nhất cho việc
+ * phân loại cơ bản / nâng cao.
+ */
 export const CHORD_QUALITIES = [
-  { label: "Trưởng", suffix: "" },
-  { label: "Thứ", suffix: "m" },
-  { label: "Át 7", suffix: "7" },
-  { label: "Trưởng 7", suffix: "maj7" },
-  { label: "Thứ 7", suffix: "m7" },
-  { label: "Nửa giảm", suffix: "m7b5" },
-  { label: "Giảm", suffix: "dim" },
-  { label: "Tăng", suffix: "aug" },
-  { label: "Sus4", suffix: "sus4" },
-  { label: "Add9", suffix: "add9" },
-] as const;
+  { label: "Trưởng", suffix: "", group: "basic" },
+  { label: "Thứ", suffix: "m", group: "basic" },
+  { label: "Át 7", suffix: "7", group: "advanced" },
+  { label: "Trưởng 7", suffix: "maj7", group: "advanced" },
+  { label: "Thứ 7", suffix: "m7", group: "advanced" },
+  { label: "Nửa giảm", suffix: "m7b5", group: "advanced" },
+  { label: "Giảm", suffix: "dim", group: "advanced" },
+  { label: "Tăng", suffix: "aug", group: "advanced" },
+  { label: "Sus4", suffix: "sus4", group: "advanced" },
+  { label: "Add9", suffix: "add9", group: "advanced" },
+] as const satisfies readonly ChordQuality[];
+
+/** Các loại hợp âm thuộc một nhóm (hoặc tất cả). Không bao giờ trả về mảng rỗng. */
+function qualitiesOf(group: ChordFilter): readonly ChordQuality[] {
+  const pool = group === "all" ? CHORD_QUALITIES : CHORD_QUALITIES.filter((q) => q.group === group);
+  return pool.length > 0 ? pool : CHORD_QUALITIES;
+}
+
+/** Hậu tố của các loại hợp âm trong một nhóm — dùng chung cho luyện tập & trắc nghiệm. */
+export function chordSuffixes(group: ChordFilter): string[] {
+  return qualitiesOf(group).map((q) => q.suffix);
+}
 
 const ROOTS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
 
@@ -116,11 +140,65 @@ export function randomNote(difficulty: Difficulty): string {
   return midiToName(midi, preferSharp);
 }
 
-/** Sinh một ký hiệu hợp âm ngẫu nhiên, ví dụ "Cmaj7", "F#m", "Bb7". */
-export function randomChord(): string {
+/** Sinh một ký hiệu hợp âm ngẫu nhiên trong một nhóm, ví dụ "Cmaj7", "F#m", "Bb7". */
+export function randomChord(group: ChordFilter = "all"): string {
   const root = pick(ROOTS);
-  const quality = pick(CHORD_QUALITIES).suffix;
+  const quality = pick(chordSuffixes(group));
   return `${root}${quality}`;
+}
+
+// ───────────────────────── Tên tiếng Việt ─────────────────────────
+
+/** Tên nốt theo tiếng Việt (gọi tên Đô Rê Mi). */
+const VN_NOTE_NAMES: Record<string, string> = {
+  C: "Đô",
+  D: "Rê",
+  E: "Mi",
+  F: "Fa",
+  G: "Sol",
+  A: "La",
+  B: "Si",
+};
+
+const VN_ACCIDENTALS: Record<string, string> = {
+  "#": " thăng",
+  "##": " thăng kép",
+  b: " giáng",
+  bb: " giáng kép",
+};
+
+/**
+ * Tên loại hợp âm tiếng Việt, suy ra từ CHORD_QUALITIES để hai bảng không lệch nhau.
+ * "" (không hậu tố) là hợp âm trưởng.
+ */
+const VN_QUALITY: Record<string, string> = Object.fromEntries(
+  CHORD_QUALITIES.map((q) => [q.suffix, q.label.toLowerCase()]),
+);
+
+/** "F#4" → "Pha thăng", "Bb" → "Si giáng". Không đọc được thì trả lại nguyên chuỗi. */
+export function vnNoteName(note: string): string {
+  const m = note.match(/^([A-Ga-g])(#{1,2}|b{1,2})?/);
+  if (!m) return note;
+  const [, letter, accidental] = m;
+  const base = VN_NOTE_NAMES[letter.toUpperCase()] ?? letter;
+  return accidental ? `${base}${VN_ACCIDENTALS[accidental] ?? ""}` : base;
+}
+
+/** Ký hiệu hợp âm: gốc + hậu tố + (tuỳ chọn) nốt nền sau dấu "/". */
+const CHORD_SYMBOL_RE = /^([A-Ga-g](?:#{1,2}|b{1,2})?)([^/]*)(?:\/([A-Ga-g](?:#{1,2}|b{1,2})?))?$/;
+
+/**
+ * Tên hợp âm tiếng Việt: "Cmaj7" → "Đô trưởng 7", "F#m7b5" → "Pha thăng nửa giảm",
+ * "D7/F#" → "Rê át 7 / Pha thăng". Hậu tố lạ thì ghép thẳng hậu tố vào tên nốt;
+ * ký hiệu không đọc được thì trả lại nguyên văn.
+ */
+export function chordNameVn(symbol: string): string {
+  const m = symbol.trim().match(CHORD_SYMBOL_RE);
+  if (!m) return symbol;
+  const [, root, suffix, bass] = m;
+  const quality = VN_QUALITY[suffix] ?? suffix;
+  const name = `${vnNoteName(root)} ${quality}`.trim();
+  return bass ? `${name} / ${vnNoteName(bass)}` : name;
 }
 
 // ───────────────────────── Hợp âm ─────────────────────────

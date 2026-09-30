@@ -3,7 +3,7 @@
  * bàn phím ảo, khuông nhạc (VexFlow) và MIDI.
  */
 import { create } from "zustand";
-import type { Difficulty, Mode, Result } from "@/lib/types";
+import type { ChordFilter, Difficulty, Mode, PreviewStyle, Result } from "@/lib/types";
 import {
   chordVoicing,
   nameToMidi,
@@ -17,13 +17,26 @@ import { playNote } from "@/lib/audio/pianoSampler";
 /** Timer tự sang câu tiếp theo (module-level để không lưu vào state). */
 let advanceTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Timer của phần nghe thử trên bàn phím (rải từng nốt + xoá cuối). */
+let previewTimers: ReturnType<typeof setTimeout>[] = [];
+
 const ADVANCE_DELAY_MS = 900;
+
+/** Nhịp rải mỗi nốt — phải khớp `i * 0.22` trong playArpeggio (pianoSampler.ts). */
+const PREVIEW_STEP_MS = 220;
+/** Thời gian giữ phím sáng sau khi phát xong. */
+const PREVIEW_HOLD_MS = 1000;
 
 function cancelAdvance() {
   if (advanceTimer) {
     clearTimeout(advanceTimer);
     advanceTimer = null;
   }
+}
+
+function cancelPreviewTimers() {
+  previewTimers.forEach(clearTimeout);
+  previewTimers = [];
 }
 
 interface PracticeState {
@@ -33,9 +46,15 @@ interface PracticeState {
   releaseNote: (note: string) => void;
   clearActive: () => void;
 
+  // ── Nghe thử (chỉ để hiển thị, KHÔNG ảnh hưởng điểm số) ──
+  previewNotes: string[];
+  previewChord: (notes: string[], style: PreviewStyle) => void;
+  cancelPreview: () => void;
+
   // ── Vòng lặp học ──
   mode: Mode;
   difficulty: Difficulty;
+  chordFilter: ChordFilter;
   targetNotes: string[];
   currentChordSymbol: string | null;
   lastResult: Result;
@@ -44,6 +63,7 @@ interface PracticeState {
 
   setMode: (m: Mode) => void;
   setDifficulty: (d: Difficulty) => void;
+  setChordFilter: (f: ChordFilter) => void;
   nextChallenge: () => void;
   checkMatch: () => boolean;
 }
@@ -101,8 +121,46 @@ export const usePracticeStore = create<PracticeState>((set, get) => {
 
     clearActive: () => set({ activeNotes: [] }),
 
+    previewNotes: [],
+
+    /**
+     * Nghe thử hợp âm: sáng phím trên bàn phím ảo theo đúng cách phát tiếng.
+     * "block" sáng tất cả cùng lúc, "arpeggio" sáng lần lượt từng nốt.
+     * Chỉ là hiển thị — không đi qua `pressNote` nên không chấm điểm.
+     */
+    previewChord: (notes, style) => {
+      cancelPreviewTimers();
+      if (notes.length === 0) {
+        set({ previewNotes: [] });
+        return;
+      }
+
+      if (style === "block") {
+        set({ previewNotes: [...notes] });
+        previewTimers.push(setTimeout(() => set({ previewNotes: [] }), PREVIEW_HOLD_MS));
+        return;
+      }
+
+      set({ previewNotes: [] });
+      notes.forEach((note, i) => {
+        previewTimers.push(
+          setTimeout(() => set((s) => ({ previewNotes: [...s.previewNotes, note] })), i * PREVIEW_STEP_MS),
+        );
+      });
+      previewTimers.push(
+        setTimeout(() => set({ previewNotes: [] }), (notes.length - 1) * PREVIEW_STEP_MS + PREVIEW_HOLD_MS),
+      );
+    },
+
+    cancelPreview: () => {
+      cancelPreviewTimers();
+      set({ previewNotes: [] });
+    },
+
     mode: "NOTE_READING",
     difficulty: "treble",
+    // Mặc định luyện nhóm cơ bản (trưởng/thứ); chọn "Tất cả" để trộn như trước.
+    chordFilter: "basic",
     targetNotes: [],
     currentChordSymbol: null,
     lastResult: "none",
@@ -111,32 +169,44 @@ export const usePracticeStore = create<PracticeState>((set, get) => {
 
     setMode: (m) => {
       cancelAdvance();
-      set({ mode: m, score: 0, attempts: 0, lastResult: "none", activeNotes: [] });
+      cancelPreviewTimers();
+      set({ mode: m, score: 0, attempts: 0, lastResult: "none", activeNotes: [], previewNotes: [] });
       get().nextChallenge();
     },
 
     setDifficulty: (d) => {
       cancelAdvance();
-      set({ difficulty: d, lastResult: "none", activeNotes: [] });
+      cancelPreviewTimers();
+      set({ difficulty: d, lastResult: "none", activeNotes: [], previewNotes: [] });
+      get().nextChallenge();
+    },
+
+    setChordFilter: (f) => {
+      cancelAdvance();
+      cancelPreviewTimers();
+      set({ chordFilter: f, lastResult: "none", activeNotes: [], previewNotes: [] });
       get().nextChallenge();
     },
 
     nextChallenge: () => {
       cancelAdvance();
-      const { mode, difficulty } = get();
+      cancelPreviewTimers();
+      const { mode, difficulty, chordFilter } = get();
       if (mode === "NOTE_READING") {
         set({
           targetNotes: [randomNote(difficulty)],
           currentChordSymbol: null,
           activeNotes: [],
+          previewNotes: [],
           lastResult: "none",
         });
       } else {
-        const symbol = randomChord();
+        const symbol = randomChord(chordFilter);
         set({
           targetNotes: chordVoicing(symbol),
           currentChordSymbol: symbol,
           activeNotes: [],
+          previewNotes: [],
           lastResult: "none",
         });
       }

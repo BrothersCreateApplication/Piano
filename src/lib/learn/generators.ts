@@ -5,12 +5,14 @@
 import { Note } from "tonal";
 import {
   chordInfo,
+  chordNameVn,
+  chordSuffixes,
   chordVoicing,
   pitchClass,
   pitchClassNumber,
   randomNote,
 } from "@/lib/music/theory";
-import type { Difficulty } from "@/lib/types";
+import type { ChordGroup, Difficulty } from "@/lib/types";
 import type { Question, QuestionKind } from "./types";
 
 // ───────────────────────── Tiện ích ─────────────────────────
@@ -119,24 +121,40 @@ export function genIntervalQuestion(): Question {
 
 // ───────────────────────── Hợp âm ─────────────────────────
 
-export function genChordQuestion(withSeventh: boolean): Question {
-  const roots = ["C", "D", "E", "F", "G", "A", "B"];
-  const quals = withSeventh ? ["", "m", "7", "maj7", "m7"] : ["", "m"];
+/** Gốc chỉ dùng nốt tự nhiên để khuông nhạc đơn giản. */
+const CHORD_ROOTS = ["C", "D", "E", "F", "G", "A", "B"];
 
-  const root = pick(roots);
-  const q = pick(quals);
-  const symbol = `${root}${q}`;
-  const notes = chordVoicing(symbol);
-  const correct = symbol;
+/**
+ * Bốc một hợp âm dựng được đủ nốt. Khuông nhạc vẽ theo `chordVoicing` còn đáp án
+ * là ký hiệu, nên nếu Tonal ghép thiếu nốt (ví dụ hợp âm tăng ở gốc B sinh nốt
+ * thăng kép) thì khuông sẽ vẽ một hợp âm khác với đáp án → phải bốc lại.
+ */
+function pickPlayableChord(group: ChordGroup) {
+  const quals = chordSuffixes(group);
+  for (let i = 0; i < 24; i++) {
+    const quality = pick(quals);
+    const root = pick(CHORD_ROOTS);
+    const symbol = `${root}${quality}`;
+    const notes = chordVoicing(symbol);
+    if (notes.length > 0 && notes.length === chordInfo(symbol).intervals.length) {
+      return { root, quality, symbol, notes };
+    }
+  }
+  return { root: "C", quality: "", symbol: "C", notes: chordVoicing("C") };
+}
 
+export function genChordQuestion(group: ChordGroup): Question {
+  const { root, quality, symbol, notes } = pickPlayableChord(group);
+
+  // Nhiễu: cùng gốc khác loại, và cùng loại khác gốc.
   const pool: string[] = [];
-  for (const oq of quals) if (oq !== q) pool.push(`${root}${oq}`);
-  for (const r of roots) if (r !== root) pool.push(`${r}${q}`);
+  for (const oq of chordSuffixes(group)) if (oq !== quality) pool.push(`${root}${oq}`);
+  for (const r of CHORD_ROOTS) if (r !== root) pool.push(`${r}${quality}`);
 
   const info = chordInfo(symbol);
-  return build("chord", "Hợp âm trên khuông là hợp âm gì?", correct, pool, {
+  return build("chord", "Hợp âm trên khuông là hợp âm gì?", symbol, pool, {
     staffNotes: notes,
-    explain: `${correct} gồm các nốt ${info.notes.join(" ")} (${info.name}).`,
+    explain: `${symbol} (${chordNameVn(symbol)}) gồm các nốt ${info.notes.join(" ")}.`,
   });
 }
 
