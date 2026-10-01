@@ -88,5 +88,13 @@ export default function NoteChart({ clef, notes, labels = true }: Props) {
     };
   }, [clef, notes, labels, width]);
 
-  return <div ref={containerRef} className="w-full min-h-[150px]" />;
+  // Nền sáng cố định (kể cả ở dark mode): VexFlow vẽ nốt/khuông màu tối, để nền
+  // trong suốt thì trên điện thoại bật dark mode nốt sẽ chìm hẳn vào nền đen.
+  // Giống cách GrandStaff làm.
+  return (
+    <div
+      ref={containerRef}
+      className="w-full min-h-[150px] rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-50"
+    />
+  );
 }
