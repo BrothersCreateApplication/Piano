@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { THEORY_TOPICS, type TheoryExample } from "@/lib/theory/topics";
 import GrandStaff from "@/components/Score/GrandStaff";
+import PianoKeyGuide from "@/components/Score/PianoKeyGuide";
 import { playArpeggio, playChord, playNote } from "@/lib/audio/pianoSampler";
 
 /** In đậm các đoạn **…**, mỗi dòng là một đoạn văn. */
@@ -53,6 +54,9 @@ function ExampleBlock({ example, audioOn }: { example: TheoryExample; audioOn: b
           <span className="text-xs text-zinc-500 dark:text-zinc-400">{example.caption}</span>
         )}
       </div>
+
+      <PianoKeyGuide notes={example.notes} mode={example.sequential ? "sequence" : "block"} />
+
       {!audioOn && (
         <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
           Bấm &ldquo;Bật âm thanh&rdquo; ở góc trên để nghe tiếng đàn.

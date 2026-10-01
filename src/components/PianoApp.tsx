@@ -17,6 +17,7 @@ import { unlockAudio, warmUpAudio } from "@/lib/audio/pianoSampler";
 import LearnView from "@/components/Learn/LearnView";
 import TheoryView from "@/components/Theory/TheoryView";
 import ChordLibrary from "@/components/Chords/ChordLibrary";
+import NoteReadingTheory from "@/components/Notes/NoteReadingTheory";
 import PracticeView from "@/components/Practice/PracticeView";
 
 type Tab = "theory" | "quiz" | "chord" | "note";
@@ -28,6 +29,14 @@ const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
   { key: "note", label: "Đọc nốt", icon: <KeyboardIcon size={16} /> },
 ];
 
+/** Tab "Đọc nốt" gồm 2 phần: học tên nốt trên khuông, rồi luyện bấm phím. */
+type NoteView = "theory" | "practice";
+
+const NOTE_VIEWS: { key: NoteView; label: string }[] = [
+  { key: "theory", label: "Lý thuyết" },
+  { key: "practice", label: "Luyện tập" },
+];
+
 export default function PianoApp() {
   const setMode = usePracticeStore((s) => s.setMode);
   const nextChallenge = usePracticeStore((s) => s.nextChallenge);
@@ -35,7 +44,7 @@ export default function PianoApp() {
   const midi = useMidiInput();
 
   const [tab, setTab] = useState<Tab>("theory");
-  const [chordView, setChordView] = useState<"library" | "practice">("library");
+  const [noteView, setNoteView] = useState<NoteView>("theory");
   const [audioOn, setAudioOn] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -58,7 +67,6 @@ export default function PianoApp() {
   function changeTab(t: Tab) {
     setTab(t);
     if (t === "note") setMode("NOTE_READING");
-    else if (t === "chord") setMode("CHORDS");
   }
 
   async function handleEnableAudio() {
@@ -70,8 +78,6 @@ export default function PianoApp() {
       setLoading(false);
     }
   }
-
-  const showPractice = tab === "note" || (tab === "chord" && chordView === "practice");
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
@@ -127,23 +133,20 @@ export default function PianoApp() {
         ))}
       </div>
 
-      {/* Tab Hợp âm có 2 chế độ: thư viện (tra cứu) và luyện tập (bấm phím) */}
-      {tab === "chord" && (
+      {/* Tab Đọc nốt có 2 phần: lý thuyết (bảng tên nốt) và luyện tập (bấm phím) */}
+      {tab === "note" && (
         <div className="flex gap-1 rounded-lg border border-zinc-200 p-1 dark:border-zinc-700">
-          {(["library", "practice"] as const).map((v) => (
+          {NOTE_VIEWS.map((v) => (
             <button
-              key={v}
-              onClick={() => {
-                setChordView(v);
-                if (v === "practice") setMode("CHORDS");
-              }}
+              key={v.key}
+              onClick={() => setNoteView(v.key)}
               className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition ${
-                chordView === v
+                noteView === v.key
                   ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
                   : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
               }`}
             >
-              {v === "library" ? "Thư viện" : "Luyện tập"}
+              {v.label}
             </button>
           ))}
         </div>
@@ -152,8 +155,9 @@ export default function PianoApp() {
       {/* Nội dung */}
       {tab === "theory" && <TheoryView audioOn={audioOn} />}
       {tab === "quiz" && <LearnView />}
-      {tab === "chord" && chordView === "library" && <ChordLibrary audioOn={audioOn} />}
-      {showPractice && <PracticeView audioOn={audioOn} />}
+      {tab === "chord" && <ChordLibrary audioOn={audioOn} />}
+      {tab === "note" && noteView === "theory" && <NoteReadingTheory />}
+      {tab === "note" && noteView === "practice" && <PracticeView audioOn={audioOn} />}
     </main>
   );
 }

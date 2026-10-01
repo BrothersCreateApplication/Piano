@@ -10,6 +10,7 @@ import {
   chordVoicing,
 } from "@/lib/music/theory";
 import GrandStaff from "@/components/Score/GrandStaff";
+import PianoKeyGuide from "@/components/Score/PianoKeyGuide";
 import { playArpeggio, playChord } from "@/lib/audio/pianoSampler";
 
 const ROOTS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
@@ -110,6 +111,8 @@ function ChordDetail({
             <Play size={14} /> Rải (arpeggio)
           </button>
         </div>
+
+        <PianoKeyGuide notes={current} mode="block" />
       </div>
 
       {/* Thể đảo */}
