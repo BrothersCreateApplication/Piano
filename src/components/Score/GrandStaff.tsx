@@ -105,9 +105,9 @@ export default function GrandStaff({ notes, result = "none", sequential = false 
             : [makeStaveNote(list, clef)];
           const voice = new VF.Voice({ numBeats: 4, beatValue: 4 }).setMode(VF.Voice.Mode.SOFT);
           voice.addTickables(staveNotes);
-          new VF.Formatter()
-            .joinVoices([voice])
-            .format([voice], Math.max(staveWidth - 100, 80));
+          // formatToStave (thay vì format + bề rộng tự đoán) để VexFlow tự chừa chỗ
+          // cho khoá nhạc + chỉ nhịp — nốt không dán sát vạch chỉ nhịp nữa.
+          new VF.Formatter().joinVoices([voice]).formatToStave([voice], stave);
           voice.draw(context, stave);
         };
 

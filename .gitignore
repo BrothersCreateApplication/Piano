@@ -43,3 +43,6 @@ next-env.d.ts
 # local Claude Code settings & logs
 .claude/
 dev.log
+
+# ảnh chụp do scripts/ sinh ra khi kiểm thử
+/*.png

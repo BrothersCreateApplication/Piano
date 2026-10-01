@@ -229,6 +229,28 @@ export function chordVoicing(symbol: string, baseOctave = 4): string[] {
   return result;
 }
 
+/** Nâng một nốt lên đúng 1 quãng tám, giữ nguyên cách viết. "C4" → "C5", "Bb3" → "Bb4". */
+function raiseOctave(note: string): string {
+  const m = note.match(/^([A-Ga-g](?:#{1,2}|b{1,2})?)(-?\d+)$/);
+  if (!m) return note;
+  return `${m[1]}${parseInt(m[2], 10) + 1}`;
+}
+
+/**
+ * Các thể đảo của hợp âm. Phần tử [0] là thể gốc, [1] là đảo 1, …
+ * Mỗi thể đảo giữ nguyên cách viết tên nốt (không đổi giáng thành thăng).
+ */
+export function chordInversions(symbol: string, baseOctave = 4): string[][] {
+  const notes = chordVoicing(symbol, baseOctave);
+  if (notes.length < 2) return notes.length ? [notes] : [];
+
+  const result: string[][] = [];
+  for (let i = 0; i < notes.length; i++) {
+    result.push([...notes.slice(i), ...notes.slice(0, i).map(raiseOctave)]);
+  }
+  return result;
+}
+
 /** Thông tin hiển thị của hợp âm. */
 export interface ChordInfo {
   symbol: string;

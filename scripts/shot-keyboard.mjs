@@ -53,8 +53,8 @@ async function main() {
     await sleep(500);
   }
 
-  // Chuyển sang tab "Luyện đọc nốt" và tạo câu hỏi để thấy nốt mục tiêu
-  await ev(`[...document.querySelectorAll('button')].find(b => b.textContent.includes('Luyện đọc nốt'))?.click()`);
+  // Chuyển sang tab "Đọc nốt" và tạo câu hỏi để thấy nốt mục tiêu
+  await ev(`[...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Đọc nốt')?.click()`);
   await sleep(300);
   await ev(`window.__practiceStore.getState().setDifficulty('bass')`);
   await sleep(800);
